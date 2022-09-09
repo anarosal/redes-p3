@@ -19,20 +19,17 @@ class IP:
         self.meu_endereco = None
         self.id = 0
 
-
-    #20 bytes de cabeçalho 0 até 128 bits
-    #Versão: 4
-    #IHL trabalhar com valor padrão que é 5
-    #DSCP E ECN colocar 0;
-    #Tamanho total = tamanho do cabeçalho ip + payload (segmento - pacote contendo o cabeço tcp + dados da aplicação)
-    #Identificação = número tem que ser diferente para cada pacote ip (pode ser gerado por um contador - manter atributo na classe que começa em 0 e vai incrementando)
-    #Flags colocar 0 também
-    #Fragment Offset colocar 0
-    #Time to live colocar 64 (roteadores) (padrão do linux) - serve pro pacote não ficar indefinidamente circulando para a rede caso haja algum problema
-    #Protocolo (o que tem dentro do payload) - valor 6 - assumindo que a camada superior seja o protocolo TCP
-    #Header checksum - calculado somente no cabeçalho - como calcula? usar a calc_checksum(cabeçalhoIP, ...), colocar 0 ou remover 16 bits na hora de calcular
-    #Ip do remetente: self.meu_endereco = meu_endereco    
-    #Endereco_ip destino: argumento
+    """
+    20 bytes de header 
+    IHL default = 5
+    DSCP , ECN, Flags, frag_offset  = 0
+    Tam = ipHeader + payload (segmento - pacote contendo o cabeço tcp + dados da aplicação)
+    Identification = número tem que ser diferente para cada pacote ip 
+    Ttl  = 64 (linux default) - matar pacotes perdidos para evitar overflow da rede
+    Proto (o que tem dentro do payload) - valor 6 - assumindo que a camada superior seja o protocolo TCP
+    Ip do remetente: self.meu_endereco = meu_endereco    
+    Endereco_ip destino: argumento
+    """
     def __raw_recv(self, datagrama):
         dscp, ecn, identification, flags, frag_offset, ttl, proto, \
            src_addr, dst_addr, payload = read_ipv4_header(datagrama)
@@ -59,11 +56,12 @@ class IP:
                 checksum = calc_checksum(datagrama_corrigir)
                 datagrama = struct.pack('!BBHHHBBH', 69, 0, 20+len(payload), identification, flags+frag_offset, ttl, proto, checksum) + str2addr(src_addr) + str2addr(dst_addr) + payload
             self.enlace.enviar(datagrama, next_hop)
+    
+    """
+    Pega um endereço do tipo x.y.z.w e verifica se o endereço está contido no cidr
+    cidr faixa de endereços ips
+    """
 
-    #Pega um endereço que tá como uma string no formato x.y.z.w e verifica se o endereço está contido no cidr
-    #cidr faixa de endereços ips
-    #Critério de desempate: retornar o next hope correspondente ao CIDR que tem o maior valor de n
-    #Prefixo mais específico
     def _next_hop(self, dest_addr):
         # TODO: Use a tabela de encaminhamento para determinar o próximo salto
         # (next_hop) a partir do endereço de destino do datagrama (dest_addr).
@@ -81,48 +79,19 @@ class IP:
        
 
     def definir_endereco_host(self, meu_endereco):
-        """
-        Define qual o endereço IPv4 (string no formato x.y.z.w) deste host.
-        Se recebermos datagramas destinados a outros endereços em vez desse,
-        atuaremos como roteador em vez de atuar como host.
-        """
         self.meu_endereco = meu_endereco
 
     def definir_tabela_encaminhamento(self, tabela):
-        """
-        Define a tabela de encaminhamento no formato
-        [(cidr0, next_hop0), (cidr1, next_hop1), ...]
-
-        Onde os CIDR são fornecidos no formato 'x.y.z.w/n', e os
-        next_hop são fornecidos no formato 'x.y.z.w'.
-        """
         # TODO: Guarde a tabela de encaminhamento. Se julgar conveniente,
         # converta-a em uma estrutura de dados mais eficiente.
         self.tabela = tabela
 
     def registrar_recebedor(self, callback):
-        """
-        Registra uma função para ser chamada quando dados vierem da camada de rede
-        """
         self.callback = callback
 
-    #20 bytes de cabeçalho 0 até 128 bits
-    #Versão: 4
-    #IHL trabalhar com valor padrão que é 5
-    #DSCP E ECN colocar 0;
-    #Tamanho total = tamanho do cabeçalho ip + payload (segmento - pacote contendo o cabeço tcp + dados da aplicação)
-    #Identificação = número tem que ser diferente para cada pacote ip (pode ser gerado por um contador - manter atributo na classe que começa em 0 e vai incrementando)
-    #Flags colocar 0 também
-    #Fragment Offset colocar 0
-    #Time to live colocar 64 (roteadores) (padrão do linux) - serve pro pacote não ficar indefinidamente circulando para a rede caso haja algum problema
-    #Protocolo (o que tem dentro do payload) - valor 6 - assumindo que a camada superior seja o protocolo TCP
-    #Header checksum - calculado somente no cabeçalho - como calcula? usar a calc_checksum(cabeçalhoIP, ...), colocar 0 ou remover 16 bits na hora de calcular
-    #Ip do remetente: self.meu_endereco = meu_endereco    
-    #Endereco_ip destino: argumento
-    #Teste
     def enviar(self, segmento, dest_addr):
         """
-        Envia segmento para dest_addr, onde dest_addr é um endereço IPv4
+        Envia o segmento para dest_addr
         (string no formato x.y.z.w).
         """
         next_hop = self._next_hop(dest_addr)
